@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Person, Expense, Settlement } from '@/types';
 import PersonCard from '@/components/PersonCard';
 import ExpenseCard from '@/components/ExpenseCard';
@@ -12,9 +11,17 @@ import { calculateBalances, calculateSettlements, getTotalExpenses } from '@/uti
 import { Plus, Users, DollarSign, FileText } from 'lucide-react';
 
 const Index = () => {
-  const [people, setPeople] = useState<Person[]>([]);
+  const [people, setPeople] = useState<Person[]>(() => {
+    const savedPeople = localStorage.getItem('people');
+    return savedPeople ? JSON.parse(savedPeople) : [];
+  });
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showAddExpense, setShowAddExpense] = useState(false);
+
+  // Save people to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('people', JSON.stringify(people));
+  }, [people]);
 
   const balances = calculateBalances(expenses, people);
   const settlements = calculateSettlements(balances);
