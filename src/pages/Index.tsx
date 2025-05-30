@@ -5,23 +5,53 @@ import ExpenseCard from '@/components/ExpenseCard';
 import AddPersonForm from '@/components/AddPersonForm';
 import AddExpenseForm from '@/components/AddExpenseForm';
 import SettlementSuggestions from '@/components/SettlementSuggestions';
+import CurrencySelector from '@/components/CurrencySelector';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { calculateBalances, calculateSettlements, getTotalExpenses } from '@/utils/calculations';
+import { formatCurrency } from '@/utils/currency';
 import { Plus, Users, DollarSign, FileText } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const Index = () => {
+  const { toast } = useToast();
   const [people, setPeople] = useState<Person[]>(() => {
     const savedPeople = localStorage.getItem('people');
     return savedPeople ? JSON.parse(savedPeople) : [];
   });
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>(() => {
+    const savedExpenses = localStorage.getItem('expenses');
+    if (savedExpenses) {
+      // Parse the dates back into Date objects
+      return JSON.parse(savedExpenses, (key, value) => {
+        if (key === 'date') {
+          return new Date(value);
+        }
+        return value;
+      });
+    }
+    return [];
+  });
+  const [currency, setCurrency] = useState(() => {
+    return localStorage.getItem('currency') || 'USD';
+  });
   const [showAddExpense, setShowAddExpense] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
   // Save people to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('people', JSON.stringify(people));
   }, [people]);
+
+  // Save expenses to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('expenses', JSON.stringify(expenses));
+  }, [expenses]);
+
+  // Save currency to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('currency', currency);
+  }, [currency]);
 
   const balances = calculateBalances(expenses, people);
   const settlements = calculateSettlements(balances);
@@ -43,7 +73,11 @@ const Index = () => {
     );
 
     if (hasExpenses) {
-      alert('Cannot remove person with existing expenses. Please delete related expenses first.');
+      toast({
+        variant: "destructive",
+        title: "Cannot remove person",
+        description: "Please delete related expenses first."
+      });
       return;
     }
 
@@ -58,13 +92,42 @@ const Index = () => {
     category: string;
     description?: string;
   }) => {
-    const newExpense: Expense = {
-      id: Date.now().toString(),
-      date: new Date(),
-      ...expenseData
-    };
-    setExpenses(prev => [...prev, newExpense]);
+    if (editingExpense) {
+      // Update existing expense
+      setExpenses(prev => prev.map(e => 
+        e.id === editingExpense.id 
+          ? { ...e, ...expenseData }
+          : e
+      ));
+      toast({
+        title: "Expense updated",
+        description: "The expense has been updated successfully."
+      });
+    } else {
+      // Add new expense
+      const newExpense: Expense = {
+        id: Date.now().toString(),
+        date: new Date(),
+        ...expenseData
+      };
+      setExpenses(prev => [...prev, newExpense]);
+      toast({
+        title: "Expense added",
+        description: "The expense has been added successfully."
+      });
+    }
     setShowAddExpense(false);
+    setEditingExpense(null);
+  };
+
+  const editExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setShowAddExpense(true);
+  };
+
+  const cancelEdit = () => {
+    setShowAddExpense(false);
+    setEditingExpense(null);
   };
 
   const deleteExpense = (expenseId: string) => {
@@ -96,14 +159,17 @@ const Index = () => {
               <h1 className="text-3xl font-bold text-gray-900">Bill Splitter</h1>
               <p className="text-gray-600">Track expenses and split bills with friends</p>
             </div>
-            <div className="flex items-center gap-6 text-center">
-              <div className="text-center">
-                <p className="text-2xl font-bold text-green-600">${totalExpenses.toFixed(2)}</p>
-                <p className="text-sm text-gray-500">Total Expenses</p>
-              </div>
-              <div className="text-center">
-                <p className="text-2xl font-bold text-blue-600">{people.length}</p>
-                <p className="text-sm text-gray-500">People</p>
+            <div className="flex items-center gap-6">
+              <CurrencySelector value={currency} onChange={setCurrency} />
+              <div className="flex items-center gap-6 text-center">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(totalExpenses, currency)}</p>
+                  <p className="text-sm text-gray-500">Total Expenses</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{people.length}</p>
+                  <p className="text-sm text-gray-500">People</p>
+                </div>
               </div>
             </div>
           </div>
@@ -137,8 +203,10 @@ const Index = () => {
             ) : showAddExpense ? (
               <AddExpenseForm 
                 people={people}
+                currency={currency}
                 onAdd={addExpense}
-                onCancel={() => setShowAddExpense(false)}
+                onCancel={cancelEdit}
+                initialData={editingExpense}
               />
             ) : (
               <Button 
@@ -162,7 +230,8 @@ const Index = () => {
                     key={expense.id}
                     expense={expense}
                     people={people}
-                    onEdit={() => {}} // To be implemented
+                    currency={currency}
+                    onEdit={() => editExpense(expense)}
                     onDelete={() => deleteExpense(expense.id)}
                   />
                 ))}
@@ -183,6 +252,7 @@ const Index = () => {
                   key={person.id}
                   person={person}
                   balance={balances[person.id] || 0}
+                  currency={currency}
                   onRemove={() => removePerson(person.id)}
                 />
               ))}
@@ -215,7 +285,7 @@ const Index = () => {
                           <span>{person.name}</span>
                         </div>
                         <span className={`font-medium ${balances[person.id] > 0 ? 'text-green-600' : balances[person.id] < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-                          {balances[person.id] > 0 ? '+' : ''}{balances[person.id].toFixed(2)}
+                          {balances[person.id] > 0 ? '+' : ''}{formatCurrency(balances[person.id], currency)}
                         </span>
                       </div>
                     ))}
@@ -223,6 +293,7 @@ const Index = () => {
                   <SettlementSuggestions
                     settlements={settlements}
                     people={people}
+                    currency={currency}
                     onMarkSettled={markSettled}
                   />
                 </div>

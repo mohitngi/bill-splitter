@@ -1,15 +1,16 @@
-
 import React from 'react';
-import { Person } from '@/types';
 import { User } from 'lucide-react';
+import { Person } from '@/types';
+import { formatCurrency } from '@/utils/currency';
 
 interface PersonCardProps {
   person: Person;
   balance: number;
+  currency: string;
   onRemove: () => void;
 }
 
-const PersonCard: React.FC<PersonCardProps> = ({ person, balance, onRemove }) => {
+const PersonCard: React.FC<PersonCardProps> = ({ person, balance, currency, onRemove }) => {
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
@@ -23,7 +24,7 @@ const PersonCard: React.FC<PersonCardProps> = ({ person, balance, onRemove }) =>
           <div>
             <h3 className="font-medium text-gray-900">{person.name}</h3>
             <p className={`text-sm ${balance > 0 ? 'text-green-600' : balance < 0 ? 'text-red-600' : 'text-gray-500'}`}>
-              {balance > 0 ? `Owed $${balance.toFixed(2)}` : balance < 0 ? `Owes $${Math.abs(balance).toFixed(2)}` : 'Settled up'}
+              {balance > 0 ? `Owed ${formatCurrency(balance, currency)}` : balance < 0 ? `Owes ${formatCurrency(Math.abs(balance), currency)}` : 'Settled up'}
             </p>
           </div>
         </div>

@@ -1,84 +1,78 @@
-
 import React from 'react';
-import { Expense, Person } from '@/types';
-import { Calendar, User } from 'lucide-react';
+import { Person, Expense } from '@/types';
+import { Button } from '@/components/ui/button';
+import { formatCurrency } from '@/utils/currency';
+import { Trash2 } from 'lucide-react';
 
 interface ExpenseCardProps {
   expense: Expense;
   people: Person[];
+  currency: string;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, people, onEdit, onDelete }) => {
-  const paidByPerson = people.find(p => p.id === expense.paidBy);
-  
-  const getCategoryColor = (category: string) => {
-    const colors = {
-      'Food': 'bg-orange-100 text-orange-800',
-      'Transport': 'bg-blue-100 text-blue-800',
-      'Shopping': 'bg-purple-100 text-purple-800',
-      'Entertainment': 'bg-pink-100 text-pink-800',
-      'Bills': 'bg-yellow-100 text-yellow-800',
-      'Other': 'bg-gray-100 text-gray-800'
-    };
-    return colors[category as keyof typeof colors] || colors.Other;
+const ExpenseCard: React.FC<ExpenseCardProps> = ({ expense, people, currency, onEdit, onDelete }) => {
+  const getPersonName = (id: string) => {
+    return people.find(p => p.id === id)?.name || 'Unknown';
   };
 
   return (
-    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <h3 className="font-medium text-gray-900">{expense.title}</h3>
-            <span className={`px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(expense.category)}`}>
-              {expense.category}
-            </span>
+    <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
+      <div className="flex items-start justify-between">
+        <div>
+          <h3 className="font-medium text-gray-900">{expense.title}</h3>
+          <p className="text-sm text-gray-500">{expense.description}</p>
+          <div className="mt-2 space-y-1">
+            <p className="text-sm">
+              <span className="text-gray-500">Paid by: </span>
+              <span className="font-medium">{getPersonName(expense.paidBy)}</span>
+            </p>
+            <p className="text-sm">
+              <span className="text-gray-500">Category: </span>
+              <span className="font-medium">{expense.category}</span>
+            </p>
+            <p className="text-sm">
+              <span className="text-gray-500">Date: </span>
+              <span className="font-medium">
+                {expense.date.toLocaleDateString()}
+              </span>
+            </p>
           </div>
-          <p className="text-2xl font-bold text-green-600">${expense.amount.toFixed(2)}</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={onEdit}
-            className="text-gray-400 hover:text-blue-500 transition-colors px-2 py-1"
-          >
-            Edit
-          </button>
-          <button
-            onClick={onDelete}
-            className="text-gray-400 hover:text-red-500 transition-colors px-2 py-1"
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-      
-      <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
-        <div className="flex items-center gap-1">
-          <User size={14} />
-          <span>Paid by {paidByPerson?.name}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Calendar size={14} />
-          <span>{expense.date.toLocaleDateString()}</span>
+        <div className="text-right">
+          <p className="text-lg font-bold text-gray-900">
+            {formatCurrency(expense.amount, currency)}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onEdit}
+            >
+              Edit
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onDelete}
+              className="text-red-600 hover:text-red-700"
+            >
+              <Trash2 size={16} />
+            </Button>
+          </div>
         </div>
       </div>
-
-      {expense.description && (
-        <p className="text-sm text-gray-600 mb-3">{expense.description}</p>
-      )}
-
-      <div className="space-y-1">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Split Details</p>
-        {expense.splits.map(split => {
-          const person = people.find(p => p.id === split.personId);
-          return (
-            <div key={split.personId} className="flex justify-between text-sm">
-              <span className="text-gray-600">{person?.name}</span>
-              <span className="font-medium">${split.amount.toFixed(2)}</span>
+      <div className="mt-4 pt-4 border-t">
+        <p className="text-sm font-medium text-gray-900 mb-2">Split between:</p>
+        <div className="space-y-1">
+          {expense.splits.map((split, index) => (
+            <div key={index} className="flex justify-between text-sm">
+              <span className="text-gray-600">{getPersonName(split.personId)}</span>
+              <span className="font-medium">{formatCurrency(split.amount, currency)}</span>
             </div>
-          );
-        })}
+          ))}
+        </div>
       </div>
     </div>
   );
